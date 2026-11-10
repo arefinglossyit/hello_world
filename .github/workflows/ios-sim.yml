@@ -1,0 +1,53 @@
+name: iOS Simulator Check
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  ios-simulator:
+    name: Run app on iPhone simulator
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Find and boot iPhone simulator
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone" -A 20 | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}" | head -1)
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}" | head -1)
+          fi
+          echo "Booting simulator UDID: $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run integration test on the simulator
+        run: flutter test integration_test -d "$UDID"
+
+      - name: Build, install and screenshot the app
+        run: |
+          set -e
+          flutter build ios --simulator --debug
+          APP=build/ios/iphonesimulator/Runner.app
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.example.helloWorld
+          sleep 12
+          xcrun simctl io "$UDID" screenshot ios_hello_world.png
+          echo "Screenshot saved."
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshot
+          path: ios_hello_world.png
+          if-no-files-found: warn
