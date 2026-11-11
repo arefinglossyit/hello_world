@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'todo_page.dart';
+import 'todo_repository.dart';
+
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, this.client});
+  const MyApp({super.key, this.client, this.todoRepository});
 
   /// HTTP client used for the API call. Can be injected in tests.
   final http.Client? client;
+
+  /// To-do storage. Can be injected in tests.
+  final TodoRepository? todoRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +24,19 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: HelloWorldPage(client: client),
+      home: HelloWorldPage(
+        client: client,
+        todoRepository: todoRepository,
+      ),
     );
   }
 }
 
 class HelloWorldPage extends StatefulWidget {
-  const HelloWorldPage({super.key, this.client});
+  const HelloWorldPage({super.key, this.client, this.todoRepository});
 
   final http.Client? client;
+  final TodoRepository? todoRepository;
 
   @override
   State<HelloWorldPage> createState() => _HelloWorldPageState();
@@ -84,6 +94,17 @@ class _HelloWorldPageState extends State<HelloWorldPage> {
                 }
                 return const CircularProgressIndicator();
               },
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      TodoPage(repository: widget.todoRepository),
+                ),
+              ),
+              child: const Text('My To-Do List'),
             ),
           ],
         ),
